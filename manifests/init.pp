@@ -7,7 +7,7 @@
 #
 #   Tested platforms:
 #    - Mint 13
-#    - Ubuntu 12.03
+#    - Ubuntu 12.04
 #
 # Parameters:
 #   Java version to be installed, must match folder name inside tar
