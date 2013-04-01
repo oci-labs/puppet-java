@@ -72,17 +72,27 @@
 #    }
 class java($version, $tarfile, $force=false) {
 
+    $jrebins = 'java,javaws,keytool,orbd,pack200,rmiregistry,servertool,tnameserv,unpack200'
+
+    $jdk1bins = 'appletviewer,apt,extcheck,idlj,jar,jarsigner,javac,javadoc'
+    $jdk2bins = 'javah,javap,jconsole,jdb,jhat,jinfo,jmap,jps,jrunscript'
+    $jdk3bins = 'jsadebugd,jstack,jstat,jstatd,native2ascii,policytool,rmic'
+    $jdk4bins = 'rmid,schemagen,serialver,wsgen,wsimport,xjc'
+    $jdkbins =  "${jdk1bins},${jdk2bins},${jdk3bins},${jdk4bins}"
+                        
     #do not set alernate compiler if there is no compiler
     if jre in $tarfile {
         $type = 'jre'
-        $bins = 'java,javaws'
+        $bins = "${jrebins}"
+        
         file { "/tmp/${tarfile}":
             ensure => file,
             source => "puppet:///modules/java/${tarfile}",
         }
     } elsif jdk in $tarfile {
         $type = 'jdk'
-        $bins = 'java,javac,javaws'
+        $bins = "${jrebins},${jdkbins}"
+        
         file { "/tmp/${tarfile}":
             ensure => file,
             source => "puppet:///modules/java/${tarfile}",

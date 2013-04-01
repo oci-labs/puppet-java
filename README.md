@@ -4,7 +4,7 @@ puppet-java
 Manage JRE/JDK Java 7 or Java 8 on Ubuntu or Mint
 
 background
----------
+----------
 
 Staying ahead of zero-day exploits can be difficult especially when managing a large enterprise deployment.
 This puppet module will help manage large groups of servers which may have different required versions of Java.
@@ -42,53 +42,55 @@ All these files must be copied into the etc/puppet/modules/java/files on the pup
 
 #### update site.pp
 Add a section similar to the one here to your site.pp file.
-This class serves as a central place for defining the versions and Java files supported by your organization.
+This list of class serves as a central place for defining the Java versions supported by your organization.
 
-Upgrading Java versions is greatly simplified because this is the only place where changes need to be made.
+Upgrading is greatly simplified because this is the only place where changes need to be made.
 When making changes be sure that the version number matches the version found inside the tar.gz file.
 
 <pre>
 import 'nodes.pp'
 
-class myJavaVersion($name = legacyJDK) {
-    case $name {
-        stableJRE: {
-            $version = '1.7.0_17'
-            $tarfile = $::architecture ? {
-                'amd64' => 'jre-7u17-linux-x64.tar.gz',
-                default => 'jre-7u17-linux-i586.tar.gz',
-            }
-            $force = false
-        }
-        stableJDK: {
-            $version = '1.7.0_17'
-            $tarfile = $::architecture ? {
-                'amd64' => 'jdk-7u17-linux-x64.tar.gz',
-                default => 'jdk-7u17-linux-i586.tar.gz',
-            }
-            $force = false
-        }
-        earlyAccessJDK: {
-            $version = '1.8.0'
-            $tarfile = $::architecture ? {
-                'amd64' => 'jdk-8-ea-bin-b79-linux-x64-28_feb_2013.tar.gz',
-                default => 'jdk-8-ea-bin-b79-linux-i586-28_feb_2013.tar.gz',
-            }
-            $force = true
-        }
-        default: {
-            $version = '1.7.0_7'
-            $tarfile = $::architecture ? {
-                'amd64' => 'jdk-7u7-linux-x64.tar.gz',
-                default => 'jdk-7u7-linux-i586.tar.gz',
-            }
-            $force = false
-        }
-    }
+class legacyJDK {
     class{ 'java':
-        version => $version,
-        tarfile => $tarfile,
-        force   => $force
+        version => '1.7.0_07',
+        tarfile =>  $::architecture ? {
+            'amd64' => 'jdk-7u7-linux-x64.tar.gz',
+            default => 'jdk-7u7-linux-i586.tar.gz',
+        },
+        force   => false
+    }
+}
+
+class stableJDK {
+    class{ 'java':
+        version => '1.7.0_17',
+        tarfile =>  $::architecture ? {
+            'amd64' => 'jdk-7u17-linux-x64.tar.gz',
+            default => 'jdk-7u17-linux-i586.tar.gz',
+        },
+        force   => false
+    }
+}
+
+class stableJRE {
+    class{ 'java':
+        version => '1.7.0_17',
+        tarfile =>  $::architecture ? {
+            'amd64' => 'jre-7u17-linux-x64.tar.gz',
+            default => 'jre-7u17-linux-i586.tar.gz',
+        },
+        force   => false
+    }
+}
+
+class earlyAccessJDK {
+    class{ 'java':
+        version => '1.8.0',
+        tarfile => $::architecture ? {
+            'amd64' => 'jdk-8-ea-bin-b79-linux-x64-28_feb_2013.tar.gz',
+            default => 'jdk-8-ea-bin-b79-linux-i586-28_feb_2013.tar.gz',
+        },
+        force   => true
     }
 }
 </pre>
@@ -107,21 +109,21 @@ node basenode {
 
 #   this will match www<number>.ociweb.com
 node /^www\d+\.ociweb\.com$/ inherits basenode {
-    include myJavaVersion(legacyJDK)
+    include legacyJDK
 }
 
 #   this will match qa<number>.ociweb.com
 node /^qa\d+\.ociweb\.com$/ inherits basenode {
-    include myJavaVersion(stableJRE)
+    include stableJRE
 }
 
 #   this will match dev<number>.ociweb.com
 node /^dev\d+\.ociweb\.com$/ inherits basenode {
-    include myJavaVersion(stableJDK)
+    include stableJDK
 }
 
 node 'experimental.ociweb.com' inherits basenode {
-    include myJavaVersion(earlyAccessJDK)
+    include earlyAccessJDK
 }
 </pre>
 

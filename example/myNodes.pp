@@ -7,19 +7,19 @@ node basenode {
 
 #   this will match www<number>.ociweb.com
 node /^www\d+\.ociweb\.com$/ inherits basenode {
-    include myJavaVersion(legacyJDK)
+    include legacyJDK
 }
 
 #   this will match qa<number>.ociweb.com
 node /^qa\d+\.ociweb\.com$/ inherits basenode {
-    include myJavaVersion(stableJRE)
+    include stableJRE
 }
 
 #   this will match dev<number>.ociweb.com
 node /^dev\d+\.ociweb\.com$/ inherits basenode {
-    include myJavaVersion(stableJDK)
+    include stableJDK
 }
 
 node 'experimental.ociweb.com' inherits basenode {
-    include myJavaVersion(earlyAccessJDK)
+    include earlyAccessJDK
 }
