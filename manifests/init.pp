@@ -71,20 +71,35 @@
 #        force => $force
 #    }
 class java($version, $tarfile, $force=false) {
+    # takes 3 parameters and the third one has a default of false
+    # variables in puppet can only be assigned once
+    # here we are building some simple strings we will need later
 
+    #these are all the binaries provided by the JRE
     $jrebins = 'java,javaws,keytool,orbd,pack200,rmiregistry,servertool,tnameserv,unpack200'
 
-    $jdk1bins = 'appletviewer,apt,extcheck,idlj,jar,jarsigner,javac,javadoc'
+    $jdk1bins = 'appletviewer,extcheck,idlj,jar,jarsigner,javac,javadoc'
     $jdk2bins = 'javah,javap,jconsole,jdb,jhat,jinfo,jmap,jps,jrunscript'
     $jdk3bins = 'jsadebugd,jstack,jstat,jstatd,native2ascii,policytool,rmic'
     $jdk4bins = 'rmid,schemagen,serialver,wsgen,wsimport,xjc'
+
+    # puppet does not have a concat operator for strings however it does have
+    # interpolation when the " double quote is used.  Making use of the
+    # variables defined above a single large string is built.
+    # these are all the binaries provided by the JDK
     $jdkbins =  "${jdk1bins},${jdk2bins},${jdk3bins},${jdk4bins}"
-                        
-    #do not set alernate compiler if there is no compiler
+
+    #if the string jre or jdk is found in the tar file name we set the
+    #appropriate values for $type and $bins
+    #the file copy operation from the master to this node is done only if its
+    #recognized to be a jre or jdk.  Further down in the exec for untar the
+    #subscribe metaparameter is used to continue the install ONLY if this
+    #file in the tmp folder gets created:
+    #                             subscribe => File["/tmp/${tarfile}"]
     if jre in $tarfile {
         $type = 'jre'
-        $bins = "${jrebins}"
-        
+        $bins = $jrebins
+
         file { "/tmp/${tarfile}":
             ensure => file,
             source => "puppet:///modules/java/${tarfile}",
@@ -92,26 +107,34 @@ class java($version, $tarfile, $force=false) {
     } elsif jdk in $tarfile {
         $type = 'jdk'
         $bins = "${jrebins},${jdkbins}"
-        
+
         file { "/tmp/${tarfile}":
             ensure => file,
             source => "puppet:///modules/java/${tarfile}",
         }
     } else {
         alert('ensure the tar file name contains substring jre or jdk')
+        #file in temp folder is not created so the install stops
     }
 
+    #warn users that this was only intended for Debian platforms but
+    #the install continues anyway
     if $::osfamily != 'Debian' {
         alert("This module only tested with Debian osfamily but ${::osfamily} was detected, use at your own risk.")
     }
 
     #Ensure that the directory for jvm exists
+    #require is used by the exec for untar below to ensure the right ordering.
     file { '/usr/lib/jvm':
         ensure => directory,
         owner  => 'root',
         group  => 'root',
     }
 
+    #the exec for untar uses the creates metaparameter to tell puppet not to
+    #bother running the command again if the creates file alread exists.
+    #When we need to change whats inside the tar we need to force it by
+    #ensuring the expected folder name destination is absent.
     if $force == true {
         file { "/usr/lib/jvm/${type}${version}" :
             ensure => absent,
@@ -120,9 +143,9 @@ class java($version, $tarfile, $force=false) {
         }
     }
 
-    #untar new java distros into the right version folder
+    #untar new Java distros into the right version named folder
     #only if the base folder exists and triggered by file copy completion
-
+    #will not run exec if the creates folder already exists
     exec { "untar-java-${type}${version}":
         command   => "/bin/tar -xvzf /tmp/${tarfile}",
         cwd       => '/usr/lib/jvm',
@@ -132,10 +155,14 @@ class java($version, $tarfile, $force=false) {
         subscribe => File["/tmp/${tarfile}"],
     }
 
+    #splits a string on the the dot token and creates array results
     $versionarray = split($version, '[.]')
     $jvmfolder = "/usr/lib/jvm/java-${versionarray[1]}-oracle"
 
-    #after new untar add a major version symlink
+    #subscribes to the exec for untar so if that executed
+    # it will then add a symlink to the version folder
+    # force must be used just in case a symlink already exists but
+    # it is pointing at some old location.
     file { $jvmfolder:
         ensure    => link,
         force     => true,
@@ -143,9 +170,12 @@ class java($version, $tarfile, $force=false) {
         subscribe => Exec["untar-java-${type}${version}"],
     }
 
-    #install and set java javac javaws to this version of java
-
+    #parse the string of binaries on the comma and produce an array
     $binsarray = split($bins, '[,]')
+
+    #This call to the define works like a macro.
+    #The $binsarray values are each mapped to $name causing multiple
+    #exec commands to get called based on what is in the array.
     altinstall{ $binsarray:
         jvmfolder => $jvmfolder
     }
@@ -155,15 +185,16 @@ class java($version, $tarfile, $force=false) {
 #   to update the alternatives for these bins
 define altinstall ($jvmfolder) {
 
-    #install this alternative only after the sim link is created
-
+    #install this alternative only if the sim link is created
+    #the command its self requires double quotes but double quotes are also
+    #in use by puppet because the string is interpolated.  In order to make this
+    #work the quotes needed by the command are escaped with \"
     exec { "alt-install-${name}":
         command   => "/usr/sbin/update-alternatives --install \"/usr/bin/${name}\" \"${name}\" \"${jvmfolder}/bin/${name}\" 1",
         subscribe => File[$jvmfolder],
     }
 
-    #set this version as the active default after it is installed
-
+    #set this version as the active default if it is installed
     exec { "alt-set-${name}":
         command   => "/usr/sbin/update-alternatives --set \"${name}\" \"${jvmfolder}/bin/${name}\"",
         subscribe => Exec["alt-install-${name}"]
