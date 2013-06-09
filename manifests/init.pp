@@ -191,8 +191,9 @@ define altinstall ($jvmfolder) {
     # in use by puppet because the string is interpolated. In order to make this
     # work the quotes needed by the command are escaped with \"
     exec { "alt-install-${name}":
-        command   => "/usr/sbin/update-alternatives --install \"/usr/bin/${name}\" \"${name}\" \"${jvmfolder}/bin/${name}\" 1",
-        subscribe => File[$jvmfolder],
+        command     => "/usr/sbin/update-alternatives --install \"/usr/bin/${name}\" \"${name}\" \"${jvmfolder}/bin/${name}\" 1",
+        subscribe   => File[$jvmfolder],
+        refreshonly => true,
     }
 
     # Set this version as the active default if it is installed
