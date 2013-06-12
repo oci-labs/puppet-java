@@ -193,12 +193,15 @@ define altinstall ($jvmfolder) {
     exec { "alt-install-${name}":
         command     => "/usr/sbin/update-alternatives --install \"/usr/bin/${name}\" \"${name}\" \"${jvmfolder}/bin/${name}\" 1",
         subscribe   => File[$jvmfolder],
-        refreshonly => true,
+        path        => "/usr/bin",
+        onlyif      => "test `/usr/sbin/update-alternatives --display ${name} |/bin/grep -c \"points to ${jvmfolder}/bin/${name}\"` -eq 0",
     }
 
     # Set this version as the active default if it is installed
     exec { "alt-set-${name}":
         command   => "/usr/sbin/update-alternatives --set \"${name}\" \"${jvmfolder}/bin/${name}\"",
-        subscribe => Exec["alt-install-${name}"]
+        subscribe => Exec["alt-install-${name}"],
+        path      => "/usr/bin",
+        onlyif    => "test `/usr/sbin/update-alternatives --display ${name} |/bin/grep -c \"points to ${jvmfolder}/bin/${name}\"` -eq 0",
     }
 }
